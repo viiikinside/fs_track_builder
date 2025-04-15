@@ -165,6 +165,7 @@ class TrackCanvas:
             original_image = pygame.image.load(image_path)
             self.background_image = pygame.transform.scale(original_image, (self.width, self.height))
             self.background_rect = self.background_image.get_rect()
+            self.background_image_path = image_path  # Store the path
             return True
         except Exception as e:
             print(f"Error loading background image: {e}")

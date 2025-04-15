@@ -1,0 +1,5 @@
+mkdir -p src/data_generation
+mkdir -p data/raw_tracks
+mkdir -p data/descriptions
+mkdir -p data/processed
+mkdir -p notebooks

@@ -165,3 +165,27 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - GPX export functionality using gpxpy
 - Background image support for real track visualization
 - Formula Student community for track design inspiration
+
+## Data Generation
+
+The project now includes functionality for generating training data for machine learning models. To generate training data:
+
+```
+python main.py --generate-data --num-samples 100
+```
+
+This will generate:
+- Track images in data/raw_tracks/
+- Track descriptions in data/descriptions/
+- Track parameters in data/processed/
+
+Each track includes:
+- Randomized segments (straight and curves)
+- Natural language description
+- Full parameter set for reproduction
+- Standardized image format
+
+The generated data can be used to train models for:
+- Track generation from descriptions
+- Track analysis and validation
+- Style transfer between tracks

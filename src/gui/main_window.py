@@ -8,12 +8,15 @@ from src.gui.track_canvas import TrackCanvas
 from src.gui.control_panel import ControlPanel
 import math
 from typing import Optional
+from src.gui.description_dialog import DescriptionDialog
+from src.data_generation.track_generator import TrackDataGenerator
+import tkinter as tk
 
 class MainWindow:
     def __init__(self) -> None:
         pygame.init()
-        self.width = 1200
-        self.height = 800
+        self.width = 1600  # Increased from 1200
+        self.height = 1000  # Increased from 800
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Formula Student Track Builder")
         
@@ -21,19 +24,20 @@ class MainWindow:
         self.background_color = (240, 240, 240)
         
         # Calculate dimensions for track canvas and control panel
-        canvas_width = int(self.width * 0.8)  # 80% of window width
+        canvas_width = int(self.width * 0.8)  # Keep original 80% ratio
         control_panel_width = self.width - canvas_width  # 20% of window width
         
         # Create track canvas first
         self.track_canvas = TrackCanvas(self.screen, width=canvas_width, height=self.height)
         
-        # Pass track_canvas to control panel
+        # Pass track_canvas and self to control panel
         self.control_panel = ControlPanel(
             self.screen,
             x=canvas_width,
             width=control_panel_width,
             height=self.height,
-            track_canvas=self.track_canvas
+            track_canvas=self.track_canvas,
+            main_window=self
         )
         
         self.running = True
@@ -44,6 +48,8 @@ class MainWindow:
         self.tracks_dir = os.path.join(self.output_dir, "tracks")
         os.makedirs(self.images_dir, exist_ok=True)
         os.makedirs(self.tracks_dir, exist_ok=True)
+        
+        self.track_generator = TrackDataGenerator()
 
     def run(self) -> None:
         clock = pygame.time.Clock()
@@ -171,3 +177,60 @@ class MainWindow:
         self.undo_stack.append(('add', new_element))
         self.current_pos = end_pos
         self.current_direction = end_angle
+
+    def save_training_example(self):
+        """Save current track as a training example"""
+        if not self.track_canvas.track_elements:
+            print("No track to save!")
+            return
+            
+        try:
+            # Initialize Tkinter root properly
+            root = tk.Tk()
+            root.withdraw()  # Hide the main window
+            
+            # Create and configure dialog
+            dialog = DescriptionDialog(root)
+            
+            # Update the dialog to ensure it's shown
+            dialog.dialog.update()
+            
+            # Run the dialog in the main thread
+            root.mainloop()
+            
+            # After dialog closes, check if description was provided
+            if dialog.description:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                # Get track parameters
+                track_params = {
+                    'timestamp': timestamp,
+                    'segments': [
+                        {k: float(v) if isinstance(v, (int, float)) else v 
+                         for k, v in segment.items()}
+                        for segment in self.track_canvas.track_elements
+                    ],
+                    'background_image': self.track_canvas.background_image_path 
+                        if hasattr(self.track_canvas, 'background_image_path') else None
+                }
+                
+                # Save training example
+                self.track_generator.save_training_example(
+                    track_params,
+                    self.screen,
+                    dialog.description
+                )
+                print("Training example saved successfully!")
+            
+        except Exception as e:
+            print(f"Error saving training example: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            if 'root' in locals():
+                root.destroy()
+            
+            # Force Pygame to regain focus
+            pygame.event.post(pygame.event.Event(pygame.ACTIVEEVENT, 
+                                               gain=1, 
+                                               state=pygame.APPACTIVE))

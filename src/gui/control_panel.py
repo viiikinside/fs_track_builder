@@ -3,7 +3,7 @@ import pygame
 from tkinter import Tk, filedialog
 
 class ControlPanel:
-    def __init__(self, screen: pygame.Surface, x: int, width: int, height: int, track_canvas: 'TrackCanvas') -> None:
+    def __init__(self, screen: pygame.Surface, x: int, width: int, height: int, track_canvas: 'TrackCanvas', main_window=None) -> None:
         self.screen = screen
         self.x = x
         self.width = width
@@ -11,6 +11,7 @@ class ControlPanel:
         self.surface = pygame.Surface((width, height))
         self.background_color = (220, 220, 220)
         self.track_canvas = track_canvas
+        self.main_window = main_window  # Store reference to main window
         
         # Initialize font
         pygame.font.init()
@@ -39,19 +40,19 @@ class ControlPanel:
 
     def create_buttons(self) -> Dict[str, Dict[str, Any]]:
         buttons = {}
-        button_height = 30
-        button_width = (self.width - 30) // 2
-        padding = 10
-        current_y = 50
+        button_height = 30  # Back to original
+        button_width = (self.width - 30) // 2  # Back to original
+        padding = 10  # Back to original
+        current_y = 50  # Back to original
 
-        # Start point button
+        # Section 1: Basic Controls
         buttons['set_start'] = {
             'rect': pygame.Rect(padding, current_y, self.width - 2*padding, button_height),
             'text': 'Set Start Point',
             'color': self.button_colors['normal'],
             'section': 'basic'
         }
-        current_y += button_height + 5
+        current_y += button_height + 5  # Back to original spacing
 
         # Length control
         buttons['length_minus'] = {
@@ -151,6 +152,14 @@ class ControlPanel:
 
         # Control buttons at bottom
         current_y = self.height - 2 * (button_height + padding)
+        buttons['save_training'] = {
+            'rect': pygame.Rect(padding, current_y, self.width - 2*padding, button_height),
+            'text': 'Save as Training Example',
+            'color': self.button_colors['normal'],
+            'section': 'control'
+        }
+        current_y += button_height + 5
+
         buttons['undo'] = {
             'rect': pygame.Rect(padding, current_y, button_width, button_height),
             'text': 'Undo',
@@ -239,6 +248,8 @@ class ControlPanel:
         elif button_name.startswith('left_'):
             angle = int(button_name.split('_')[1])
             self.track_canvas.add_curve_segment('left', angle=angle, radius=self.curve_radius)
+        elif button_name == 'save_training':
+            self.main_window.save_training_example()
 
     def update(self) -> None:
         pass

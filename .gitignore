@@ -1,3 +1,9 @@
+# Data directories
+data/
+data/raw_tracks/
+data/descriptions/
+data/processed/
+
 # Output directories
 output/
 output/images/
