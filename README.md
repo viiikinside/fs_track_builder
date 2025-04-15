@@ -1,57 +1,159 @@
-This repository contains code to build Formula Student Tracks
-
 # Formula Student Track Builder
 
-A Python-based tool for designing and validating Formula Student competition tracks.
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/fs_track_builder.git
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+A Python-based graphical tool for designing and exporting Formula Student autocross/endurance tracks. Create precise track layouts with an intuitive interface, supporting background images and multiple export formats.
 
 ## Features
-- Generate track layouts following Formula Student competition rules
-- Validate track dimensions and cone placement
-- Export tracks to common formats (CSV, JSON)
-- Visualize tracks with matplotlib
-- Calculate optimal racing line
+
+### Track Building
+- **Customizable Segments**
+  - Straight segments with adjustable length (20-300 pixels)
+  - Curved segments with adjustable radius (20-150 pixels)
+  - Multiple curve angles (15°, 30°, 45°, 60°, 75°, 90°, 120°, 135°, 150°, 180°)
+  - Both left and right turns supported
+
+### Interface Controls
+- **Track Manipulation**
+  - Set custom starting points by clicking on the canvas
+  - Precise angle input for segments
+  - Visual angle selection with mouse
+  - Undo functionality
+  - Clear track option
+
+- **Segment Parameters**
+  - Adjustable straight segment length
+  - Adjustable curve radius
+  - Real-time visual feedback
+
+### Background Support
+- Load custom background images (PNG, JPG)
+- Default background (goms_airfield.png)
+- Transparent grid overlay for better visualization
+- Maintains aspect ratio while scaling to canvas
+
+### Export Options
+- **Multiple Export Formats**
+  - PNG screenshot of the track
+  - NumPy array of track coordinates (.npy)
+  - GPX file format for GPS compatibility
+- Automatic file naming with timestamps
+- Organized output directory structure
+
+## Installation
+
+1. Clone the repository from GitHub
+2. Navigate to the project directory
+3. Install required dependencies using pip and the requirements.txt file
 
 ## Usage
-```python
-from fs_track_builder import TrackBuilder
 
-# Create a new track
-track = TrackBuilder()
+### Starting the Application
+Run the main.py file to launch the application.
 
-# Add track elements
-track.add_straight(length=30)
-track.add_corner(radius=9, angle=90)
+### Basic Controls
 
-# Validate track
-track.validate()
+1. **Setting Track Start Point**
+   - Click "Set Start Point"
+   - Click anywhere on the canvas
+   - A green arrow indicates the initial direction
 
-# Export track
-track.export("my_track.json")
+2. **Adding Straight Segments**
+   - Adjust length using +/- buttons
+   - Click "Add Straight Segment"
+   - Or set custom angle:
+     - Click "Set Direction" and use mouse
+     - Or click "Enter Angle" for precise input
+
+3. **Adding Curves**
+   - Adjust radius using +/- buttons
+   - Choose from predefined angles
+   - Select left or right direction
+
+4. **Background Management**
+   - Click "Load Background" to choose custom image
+   - Images are loaded from track_backgrounds directory
+   - Default background loads automatically
+
+### Advanced Features
+
+1. **Track Modification**
+   - Use "Undo" to remove last segment
+   - "Clear Track" removes all segments
+   - Adjust segment parameters anytime
+
+2. **Export Options**
+   - Tracks auto-save on exit
+   - Exports to output/images/ and output/tracks/
+   - Supports multiple format exports simultaneously
+
+## Project Structure
+
+```
+fs_track_builder/
+├── src/
+│   ├── gui/
+│   │   ├── main_window.py
+│   │   ├── track_canvas.py
+│   │   └── control_panel.py
+│   └── models/
+│       └── track_element.py
+├── track_backgrounds/
+│   └── goms_airfield.png
+├── output/
+│   ├── images/
+│   └── tracks/
+├── main.py
+└── README.md
 ```
 
-## Configuration
-Track parameters can be configured in `config.yaml`:
-- Minimum track width
-- Maximum track length
-- Cone spacing
-- Safety margins
+## Technical Details
+
+### Track Elements
+- **Straight Segments**
+  - Defined by start point, length, and angle
+  - Continuous connection with previous segment
+
+- **Curved Segments**
+  - Defined by center point, radius, and sweep angle
+  - Automatic tangent calculation for smooth transitions
+
+### Coordinate System
+- Origin (0,0) at top-left corner
+- Positive x-axis points right
+- Positive y-axis points down
+- Angles measured clockwise from vertical
+
+### Export Formats
+- **PNG**: Full resolution screenshot
+- **NPY**: NumPy array of (x,y) coordinates
+- **GPX**: Standard GPS Exchange Format
+  - Coordinates scaled to GPS format
+  - Compatible with navigation software
+
+## Development
+
+The project uses:
+- Python 3.7+
+- Pygame for graphics and user interface
+- NumPy for coordinate calculations
+- GPXpy for GPS file export
+- Type hints throughout the codebase
+- Modular architecture for easy extension
 
 ## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+
+Contributions are welcome! The codebase is fully typed and follows a modular structure. Feel free to submit pull requests or open issues for:
+- New features
+- Bug fixes
+- Documentation improvements
+- Performance optimizations
 
 ## License
+
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
-- Formula Student Germany for track design guidelines
-- Contributors and maintainers
+
+- Built using Pygame for robust graphics handling
+- GPX export functionality using gpxpy
+- Background image support for real track visualization
+- Formula Student community for track design inspiration
