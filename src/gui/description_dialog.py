@@ -12,6 +12,9 @@ class DescriptionDialog:
         self.dialog.grab_set()
         self.dialog.attributes('-topmost', True)
         
+        # Protocol for window close button (X)
+        self.dialog.protocol("WM_DELETE_WINDOW", self.cancel)
+        
         # Center the dialog
         self.dialog.update_idletasks()
         width = self.dialog.winfo_width()
@@ -49,7 +52,7 @@ class DescriptionDialog:
         
         # Bind enter key to save
         self.dialog.bind('<Return>', lambda e: self.save())
-        self.dialog.bind('<Escape>', lambda e: self.cancel())
+        self.dialog.bind('<Escape>', lambda e: self.force_cancel())
         
         self.description = None
         
@@ -65,4 +68,10 @@ class DescriptionDialog:
         
     def cancel(self):
         self.description = None
+        self.dialog.destroy()
+        
+    def force_cancel(self):
+        """Force cancel and exit program"""
+        self.description = None
+        self.dialog.quit()  # Stop mainloop
         self.dialog.destroy() 

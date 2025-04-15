@@ -1,8 +1,8 @@
 # Data directories
-data/
-data/raw_tracks/
+data/raw_images/
+data/track_images/
+data/track_coords/
 data/descriptions/
-data/processed/
 
 # Output directories
 output/

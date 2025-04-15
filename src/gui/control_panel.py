@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional
 import pygame
 from tkinter import Tk, filedialog
+import tkinter as tk
 
 class ControlPanel:
     def __init__(self, screen: pygame.Surface, x: int, width: int, height: int, track_canvas: 'TrackCanvas', main_window=None) -> None:
@@ -214,32 +215,45 @@ class ControlPanel:
         elif button_name == 'clear_track':
             self.track_canvas.clear_track()
         elif button_name == 'load_image':
-            import tkinter as tk
-            from tkinter import filedialog
+            # Store current window state
+            pygame.display.iconify()  # Minimize Pygame window
             
+            # Create a new Tkinter instance for file dialog
             root = tk.Tk()
-            root.wm_attributes('-topmost', 1)  # Keep window on top
-            root.focus_force()  # Force focus to the dialog
             root.withdraw()
             
+            print("\nFile Dialog opened:")
+            print("- Use Tab to move between elements")
+            print("- Use Enter to select/open")
+            print("- Use Backspace to go up one directory")
+            print("- Use letters to jump to files")
+            print("- Use Escape to cancel\n")
+            
             try:
-                file_path = filedialog.askopenfilename(
-                    master=root,
-                    initialdir="track_backgrounds",
-                    title="Select Background Image",
+                # Create a simpler file dialog that works better with keyboard
+                dialog = tk.filedialog.Open(
+                    parent=root,
+                    title="Select Background Image - Use Tab and Enter",
                     filetypes=(
                         ("PNG files", "*.png"),
                         ("JPEG files", "*.jpg"),
                         ("All files", "*.*")
-                    )
+                    ),
+                    initialdir="track_backgrounds"
                 )
+                
+                file_path = dialog.show()
                 
                 if file_path:
                     self.track_canvas.load_background(file_path)
+                    print(f"Loaded background: {file_path}")
+                
             except Exception as e:
                 print(f"Error loading image: {e}")
             finally:
                 root.destroy()
+                pygame.display.set_mode((self.screen.get_width(), self.screen.get_height()))
+                pygame.event.pump()  # Process events to restore window
         elif button_name == 'set_precise_angle':
             self.track_canvas.set_angle_input(True)
         elif button_name.startswith('right_'):

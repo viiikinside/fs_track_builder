@@ -46,6 +46,12 @@ class TrackCanvas:
         self.pan_start = None
         self.offset = [0, 0]  # [x, y] offset for panning
 
+        # Add description text box
+        self.description_font = pygame.font.SysFont('Arial', 14)
+        self.description = ""
+        self.description_active = False
+        self.description_rect = pygame.Rect(10, self.height - 100, self.width - 20, 80)
+
     def add_straight_segment(self, length: float = 100) -> None:
         start_pos = self.current_pos
         # Calculate end position based on current direction
@@ -64,63 +70,70 @@ class TrackCanvas:
         self.current_pos = end_pos
 
     def add_curve_segment(self, direction: str = 'right', angle: float = 180, radius: float = 50) -> None:
+        # Always start from current position
         start_pos = self.current_pos
         start_angle = self.current_direction
+        
+        print(f"Starting curve at pos: {start_pos}, angle: {start_angle}")
         
         # Convert angles to radians for calculations
         start_rad = math.radians(start_angle)
         
         if direction == 'right':
-            # Calculate center point - perpendicular to current direction
+            # Calculate center point from current position
             center = (
-                start_pos[0] - radius * math.sin(start_rad),  # x = r * sin(θ)
-                start_pos[1] + radius * math.cos(start_rad)   # y = -r * cos(θ)
+                start_pos[0] - radius * math.sin(start_rad),  # Move right perpendicular to direction
+                start_pos[1] + radius * math.cos(start_rad)   # Move right perpendicular to direction
             )
             
-            # For right turns
-            start_angle_draw = (start_angle + 90) % 360  # Start perpendicular to direction
-            end_angle_draw = (start_angle + 90 - angle) % 360  # Clockwise
-            end_angle = (start_angle - angle) % 360  # Update final direction
+            # Keep the angle calculations (they work correctly)
+            start_angle_draw = (math.pi/2 + start_rad)
+            end_angle_draw = start_angle_draw + math.radians(angle)
+            end_angle = (start_angle - angle) % 360
             
-            # Calculate end position
-            end_rad = math.radians(end_angle)
+        else:  # left
+            # Calculate center point from current position
+            center = (
+                start_pos[0] + radius * math.sin(start_rad),  # Move left perpendicular to direction
+                start_pos[1] - radius * math.cos(start_rad)   # Move left perpendicular to direction
+            )
+            
+            # Keep the angle calculations (they work correctly)
+            start_angle_draw = (math.pi/2 + start_rad + math.pi)
+            end_angle_draw = start_angle_draw + math.radians(angle)
+            end_angle = (start_angle + angle) % 360
+        
+        # Calculate end position using the center point
+        end_rad = math.radians(end_angle)
+        if direction == 'right':
             end_pos = (
                 center[0] + radius * math.sin(end_rad),
                 center[1] - radius * math.cos(end_rad)
             )
-        else:  # left
-            # Calculate center point - perpendicular to current direction
-            center = (
-                start_pos[0] + radius * math.sin(start_rad),  # x = -r * sin(θ)
-                start_pos[1] - radius * math.cos(start_rad)   # y = r * cos(θ)
-            )
-            
-            # For left turns
-            start_angle_draw = (start_angle - 90) % 360  # Start perpendicular to direction
-            end_angle_draw = (start_angle - 90 + angle) % 360  # Counter-clockwise
-            end_angle = (start_angle + angle) % 360  # Update final direction
-            
-            # Calculate end position
-            end_rad = math.radians(end_angle)
+        else:
             end_pos = (
                 center[0] - radius * math.sin(end_rad),
                 center[1] + radius * math.cos(end_rad)
             )
         
+        print(f"Curve ends at pos: {end_pos}, angle: {end_angle}")
+        
+        # Store the curve element
         new_element = {
             'type': 'curve',
-            'start': start_pos,
+            'start': start_pos,  # Use exact current position
             'center': center,
             'radius': radius,
-            'start_angle': math.radians(start_angle_draw),  # Store in radians for drawing
-            'end_angle': math.radians(end_angle_draw),
+            'start_angle': start_angle_draw,
+            'end_angle': end_angle_draw,
             'direction': direction
         }
         
+        # Update track state
         self.track_elements.append(new_element)
         self.undo_stack.append(('add', new_element))
-        self.current_pos = end_pos
-        self.current_direction = end_angle
+        self.current_pos = end_pos  # Update position for next segment
+        self.current_direction = end_angle  # Update direction for next segment
 
     def undo(self) -> None:
         if self.undo_stack:
@@ -241,6 +254,21 @@ class TrackCanvas:
         elif event.type == pygame.MOUSEMOTION and self.waiting_for_angle:
             # Update temporary angle line
             self.temp_angle_line = (self.current_pos, event.pos)
+
+        # Handle description text input
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.description_rect.collidepoint(event.pos):
+                self.description_active = True
+            else:
+                self.description_active = False
+
+        if event.type == pygame.KEYDOWN and self.description_active:
+            if event.key == pygame.K_BACKSPACE:
+                self.description = self.description[:-1]
+            elif event.key == pygame.K_RETURN:
+                self.description_active = False
+            else:
+                self.description += event.unicode
 
     def update(self) -> None:
         pass
@@ -425,6 +453,18 @@ class TrackCanvas:
             text = self.font.render(self.current_angle_str + "°", True, (0, 0, 0))
             text_rect = text.get_rect(midleft=(self.angle_input_rect.x + 5, self.angle_input_rect.centery))
             self.surface.blit(text, text_rect)
+
+        # Draw description text box
+        pygame.draw.rect(self.surface, (255, 255, 255), self.description_rect)
+        pygame.draw.rect(self.surface, (100, 100, 100), self.description_rect, 1)
+        
+        # Draw description text or placeholder
+        if self.description:
+            text = self.description_font.render(self.description, True, (0, 0, 0))
+        else:
+            text = self.description_font.render("Click here to enter track description...", True, (150, 150, 150))
+        
+        self.surface.blit(text, (self.description_rect.x + 5, self.description_rect.y + 5))
 
         # Draw surface to screen
         self.screen.blit(self.surface, (0, 0))

@@ -66,8 +66,10 @@ class MainWindow:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.save_track_data()  # Save before closing
-                    self.running = False
+                    print("Exiting program...")
+                    pygame.quit()
+                    import sys
+                    sys.exit()
             self.track_canvas.handle_event(event)
             self.control_panel.handle_event(event)
 
@@ -185,52 +187,68 @@ class MainWindow:
             return
             
         try:
-            # Initialize Tkinter root properly
-            root = tk.Tk()
-            root.withdraw()  # Hide the main window
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             
-            # Create and configure dialog
-            dialog = DescriptionDialog(root)
+            # Create data directories
+            data_dir = "data"
+            raw_dir = os.path.join(data_dir, "raw_images")
+            track_dir = os.path.join(data_dir, "track_images")
+            coords_dir = os.path.join(data_dir, "track_coords")
+            desc_dir = os.path.join(data_dir, "descriptions")
             
-            # Update the dialog to ensure it's shown
-            dialog.dialog.update()
+            for d in [raw_dir, track_dir, coords_dir, desc_dir]:
+                os.makedirs(d, exist_ok=True)
             
-            # Run the dialog in the main thread
-            root.mainloop()
+            # Save the raw background image
+            if hasattr(self.track_canvas, 'background_image_path'):
+                bg_name = os.path.basename(self.track_canvas.background_image_path)
+                raw_path = os.path.join(raw_dir, f"raw_{timestamp}_{bg_name}")
+                import shutil
+                shutil.copy2(self.track_canvas.background_image_path, raw_path)
             
-            # After dialog closes, check if description was provided
-            if dialog.description:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                # Get track parameters
-                track_params = {
-                    'timestamp': timestamp,
-                    'segments': [
-                        {k: float(v) if isinstance(v, (int, float)) else v 
-                         for k, v in segment.items()}
-                        for segment in self.track_canvas.track_elements
-                    ],
-                    'background_image': self.track_canvas.background_image_path 
-                        if hasattr(self.track_canvas, 'background_image_path') else None
-                }
-                
-                # Save training example
-                self.track_generator.save_training_example(
-                    track_params,
-                    self.screen,
-                    dialog.description
-                )
-                print("Training example saved successfully!")
+            # Save the track image (without GUI elements)
+            track_surface = pygame.Surface((self.track_canvas.width, self.track_canvas.height))
+            if self.track_canvas.background_image:
+                track_surface.blit(self.track_canvas.background_image, (0, 0))
+            else:
+                track_surface.fill((255, 255, 255))  # White background if no image
+            
+            # Draw only the track on the surface
+            for element in self.track_canvas.track_elements:
+                if element['type'] == 'straight':
+                    start = element['start']
+                    end = element['end']
+                    pygame.draw.line(track_surface, self.track_canvas.track_color,
+                                  start, end, self.track_canvas.track_width)
+                elif element['type'] == 'curve':
+                    center = element['center']
+                    radius = element['radius']
+                    rect = pygame.Rect(
+                        center[0] - radius,
+                        center[1] - radius,
+                        radius * 2,
+                        radius * 2
+                    )
+                    pygame.draw.arc(track_surface, self.track_canvas.track_color,
+                                  rect, element['start_angle'], element['end_angle'],
+                                  self.track_canvas.track_width)
+            
+            track_path = os.path.join(track_dir, f"track_{timestamp}.png")
+            pygame.image.save(track_surface, track_path)
+            
+            # Save track coordinates as numpy array
+            track_points = self.track_canvas.get_track_points()
+            if track_points is not None:
+                coords_path = os.path.join(coords_dir, f"track_{timestamp}.npy")
+                np.save(coords_path, track_points)
+            
+            # Save the description
+            if self.track_canvas.description:
+                desc_path = os.path.join(desc_dir, f"track_{timestamp}.txt")
+                with open(desc_path, 'w') as f:
+                    f.write(self.track_canvas.description)
+            
+            print(f"Saved training example with timestamp: {timestamp}")
             
         except Exception as e:
             print(f"Error saving training example: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            if 'root' in locals():
-                root.destroy()
-            
-            # Force Pygame to regain focus
-            pygame.event.post(pygame.event.Event(pygame.ACTIVEEVENT, 
-                                               gain=1, 
-                                               state=pygame.APPACTIVE))

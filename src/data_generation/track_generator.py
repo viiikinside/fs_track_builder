@@ -15,9 +15,7 @@ class TrackDataGenerator:
         self.processed_dir = os.path.join(output_dir, "processed")
         
         # Create directories if they don't exist
-        os.makedirs(self.raw_tracks_dir, exist_ok=True)
         os.makedirs(self.descriptions_dir, exist_ok=True)
-        os.makedirs(self.processed_dir, exist_ok=True)
 
         # Track generation parameters
         self.min_segments = 3
