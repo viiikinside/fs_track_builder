@@ -1,10 +1,11 @@
+from typing import Optional, Tuple, List, Dict, Union, Any
 import pygame
 from models.track_element import TrackElement
 import numpy as np
 import math
 
 class TrackCanvas:
-    def __init__(self, screen, width, height):
+    def __init__(self, screen: pygame.Surface, width: int, height: int) -> None:
         self.screen = screen
         self.width = width
         self.height = height
@@ -31,7 +32,7 @@ class TrackCanvas:
         self.font = pygame.font.SysFont('Arial', 16)
         self.angle_input_rect = pygame.Rect(10, 10, 100, 30)
 
-    def add_straight_segment(self, length=100):
+    def add_straight_segment(self, length: float = 100) -> None:
         start_pos = self.current_pos
         # Calculate end position based on current direction
         rad = math.radians(self.current_direction)
@@ -48,7 +49,7 @@ class TrackCanvas:
         self.undo_stack.append(('add', new_element))
         self.current_pos = end_pos
 
-    def add_curve_segment(self, direction='right', angle=180, radius=50):
+    def add_curve_segment(self, direction: str = 'right', angle: float = 180, radius: float = 50) -> None:
         start_pos = self.current_pos
         start_angle = self.current_direction
         
@@ -100,7 +101,7 @@ class TrackCanvas:
         self.current_pos = end_pos
         self.current_direction = end_angle
 
-    def undo(self):
+    def undo(self) -> None:
         if self.undo_stack:
             action, element = self.undo_stack.pop()
             if action == 'add':
@@ -120,24 +121,24 @@ class TrackCanvas:
                     self.current_pos = (self.width // 2, self.height // 2)
                     self.current_direction = -90
 
-    def clear_track(self):
+    def clear_track(self) -> None:
         self.track_elements = []
         self.undo_stack = []
         self.current_pos = (self.width // 2, self.height // 2)
         self.current_direction = -90
 
-    def set_waiting_for_start(self, waiting):
+    def set_waiting_for_start(self, waiting: bool) -> None:
         self.waiting_for_start_point = waiting
         self.waiting_for_angle = False
         self.temp_start_pos = None
         if waiting:
             self.clear_track()
 
-    def start_angle_selection(self):
+    def start_angle_selection(self) -> None:
         self.waiting_for_angle = True
         self.temp_start_pos = self.current_pos
 
-    def load_background(self, image_path):
+    def load_background(self, image_path: str) -> bool:
         try:
             # Load and scale the image to fit the canvas
             original_image = pygame.image.load(image_path)
@@ -148,7 +149,7 @@ class TrackCanvas:
             print(f"Error loading background image: {e}")
             return False
 
-    def set_angle_input(self, active):
+    def set_angle_input(self, active: bool) -> None:
         self.angle_input_active = active
         if active:
             self.current_angle_str = str(int(self.current_direction))
@@ -161,7 +162,7 @@ class TrackCanvas:
                 pass
             self.current_angle_str = ""
 
-    def handle_event(self, event):
+    def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN:
             # If clicking outside angle input box, deactivate it
             if self.angle_input_active and not self.angle_input_rect.collidepoint(event.pos):
@@ -197,10 +198,10 @@ class TrackCanvas:
             # Update temporary angle line
             self.temp_angle_line = (self.current_pos, event.pos)
 
-    def update(self):
+    def update(self) -> None:
         pass
 
-    def draw(self):
+    def draw(self) -> None:
         # Draw background image if available, otherwise fill with white
         if self.background_image:
             self.surface.blit(self.background_image, (0, 0))
@@ -282,7 +283,7 @@ class TrackCanvas:
         # Draw surface to screen
         self.screen.blit(self.surface, (0, 0))
 
-    def get_track_points(self):
+    def get_track_points(self) -> Optional[np.ndarray]:
         if not self.track_elements:
             return None
             

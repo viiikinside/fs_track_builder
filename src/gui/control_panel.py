@@ -1,8 +1,9 @@
+from typing import Dict, Any, Optional
 import pygame
 from tkinter import Tk, filedialog
 
 class ControlPanel:
-    def __init__(self, screen, x, width, height, track_canvas):
+    def __init__(self, screen: pygame.Surface, x: int, width: int, height: int, track_canvas: 'TrackCanvas') -> None:
         self.screen = screen
         self.x = x
         self.width = width
@@ -36,7 +37,7 @@ class ControlPanel:
         # Load default background
         self.load_default_background()
 
-    def create_buttons(self):
+    def create_buttons(self) -> Dict[str, Dict[str, Any]]:
         buttons = {}
         button_height = 30
         button_width = (self.width - 30) // 2
@@ -165,7 +166,7 @@ class ControlPanel:
 
         return buttons
 
-    def handle_event(self, event):
+    def handle_event(self, event: pygame.event.Event) -> None:
         mouse_pos = pygame.mouse.get_pos()
         # Adjust mouse position relative to panel
         relative_pos = (mouse_pos[0] - self.x, mouse_pos[1])
@@ -184,7 +185,7 @@ class ControlPanel:
                 if button_data['rect'].collidepoint(relative_pos):
                     self.handle_button_click(button_name)
 
-    def handle_button_click(self, button_name):
+    def handle_button_click(self, button_name: str) -> None:
         if button_name == 'set_start':
             self.track_canvas.set_waiting_for_start(True)
         elif button_name == 'set_angle':
@@ -239,10 +240,10 @@ class ControlPanel:
             angle = int(button_name.split('_')[1])
             self.track_canvas.add_curve_segment('left', angle=angle, radius=self.curve_radius)
 
-    def update(self):
+    def update(self) -> None:
         pass
 
-    def draw(self):
+    def draw(self) -> None:
         # Fill background
         self.surface.fill(self.background_color)
         
@@ -306,7 +307,7 @@ class ControlPanel:
         # Draw surface to screen
         self.screen.blit(self.surface, (self.x, 0))
 
-    def load_default_background(self):
+    def load_default_background(self) -> None:
         default_image = "track_backgrounds/goms_airfield.png"
         try:
             self.track_canvas.load_background(default_image)

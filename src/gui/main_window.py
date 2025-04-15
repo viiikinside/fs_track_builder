@@ -7,9 +7,10 @@ import gpxpy.gpx
 from src.gui.track_canvas import TrackCanvas
 from src.gui.control_panel import ControlPanel
 import math
+from typing import Optional
 
 class MainWindow:
-    def __init__(self):
+    def __init__(self) -> None:
         pygame.init()
         self.width = 1200
         self.height = 800
@@ -44,7 +45,7 @@ class MainWindow:
         os.makedirs(self.images_dir, exist_ok=True)
         os.makedirs(self.tracks_dir, exist_ok=True)
 
-    def run(self):
+    def run(self) -> None:
         clock = pygame.time.Clock()
         while self.running:
             self.handle_events()
@@ -52,7 +53,7 @@ class MainWindow:
             self.draw()
             clock.tick(60)  # Limit to 60 FPS
             
-    def handle_events(self):
+    def handle_events(self) -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.save_track_data()  # Save before closing
@@ -64,17 +65,17 @@ class MainWindow:
             self.track_canvas.handle_event(event)
             self.control_panel.handle_event(event)
 
-    def update(self):
+    def update(self) -> None:
         self.track_canvas.update()
         self.control_panel.update()
 
-    def draw(self):
+    def draw(self) -> None:
         self.screen.fill(self.background_color)  # Light gray background
         self.track_canvas.draw()
         self.control_panel.draw()
         pygame.display.flip()
 
-    def save_track_data(self):
+    def save_track_data(self) -> None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # Save as PNG image
@@ -98,7 +99,7 @@ class MainWindow:
         else:
             print(f"Track saved to:\n- Image: {image_path}")
 
-    def save_as_gpx(self, track_points, gpx_path):
+    def save_as_gpx(self, track_points: np.ndarray, gpx_path: str) -> None:
         gpx = gpxpy.gpx.GPX()
         gpx_track = gpxpy.gpx.GPXTrack()
         gpx.tracks.append(gpx_track)
