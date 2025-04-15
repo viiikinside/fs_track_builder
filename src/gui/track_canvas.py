@@ -25,9 +25,9 @@ class TrackCanvas:
         self.track_total_width = 0.75  # Track width in meters (reduced from 1.5)
         self.pixels_per_meter = 8  # Scale factor (reduced from 10)
         self.lane_offset = (self.track_total_width / 2) * self.pixels_per_meter  # Distance from center to each lane
-        self.current_direction = -90  # Start pointing upward (in degrees)
+        self.current_direction = 270  # Start pointing upward (in degrees)
         self.waiting_for_start_point = False
-        self.start_direction = -90  # Default direction (upward)
+        self.start_direction = 270  # Default direction (upward)
         self.waiting_for_angle = False
         self.temp_start_pos = None
         self.temp_angle_line = None
@@ -56,6 +56,8 @@ class TrackCanvas:
         start_pos = self.current_pos
         # Calculate end position based on current direction
         rad = math.radians(self.current_direction)
+
+        print(f"Starting straight at pos: {start_pos}, angle: {self.current_direction}")
         dx = length * math.cos(rad)
         dy = length * math.sin(rad)
         end_pos = (start_pos[0] + dx, start_pos[1] + dy)
@@ -69,51 +71,48 @@ class TrackCanvas:
         self.undo_stack.append(('add', new_element))
         self.current_pos = end_pos
 
+        print(f"End of straight at pos: {end_pos}, angle: {self.current_direction}")
+
     def add_curve_segment(self, direction: str = 'right', angle: float = 180, radius: float = 50) -> None:
-        # Always start from current position
         start_pos = self.current_pos
         start_angle = self.current_direction
-        
-        print(f"Starting curve at pos: {start_pos}, angle: {start_angle}")
-        
-        # Convert angles to radians for calculations
         start_rad = math.radians(start_angle)
         
         if direction == 'right':
-            # Calculate center point from current position
+            # For right turns, center is 90° clockwise from direction
             center = (
-                start_pos[0] - radius * math.sin(start_rad),  # Move right perpendicular to direction
-                start_pos[1] + radius * math.cos(start_rad)   # Move right perpendicular to direction
+                start_pos[0] + radius * math.sin(start_rad),  # x = x0 - r * cos(θ)
+                start_pos[1] + radius * math.cos(start_rad)   # y = y0 - r * sin(θ)
             )
             
-            # Keep the angle calculations (they work correctly)
-            start_angle_draw = (math.pi/2 + start_rad)
-            end_angle_draw = start_angle_draw + math.radians(angle)
-            end_angle = (start_angle - angle) % 360
+            # Right turns increase angle clockwise
+            start_angle_draw = start_rad
+            end_angle_draw = start_rad + math.radians(angle)
+            end_angle = (start_angle + angle) % 360
             
         else:  # left
-            # Calculate center point from current position
+            # For left turns, center is 90° counter-clockwise from direction
             center = (
-                start_pos[0] + radius * math.sin(start_rad),  # Move left perpendicular to direction
-                start_pos[1] - radius * math.cos(start_rad)   # Move left perpendicular to direction
+                start_pos[0] - radius * math.sin(start_rad),  # x = x0 + r * cos(θ)
+                start_pos[1] - radius * math.cos(start_rad)   # y = y0 + r * sin(θ)
             )
             
-            # Keep the angle calculations (they work correctly)
-            start_angle_draw = (math.pi/2 + start_rad + math.pi)
-            end_angle_draw = start_angle_draw + math.radians(angle)
-            end_angle = (start_angle + angle) % 360
+            # Left turns decrease angle counter-clockwise
+            start_angle_draw = start_rad  # Start at current direction + 180°
+            end_angle_draw = start_angle_draw - math.radians(angle)  # Counter-clockwise
+            end_angle = (start_angle - angle) % 360
         
-        # Calculate end position using the center point
+        # Calculate end position
         end_rad = math.radians(end_angle)
         if direction == 'right':
             end_pos = (
-                center[0] + radius * math.sin(end_rad),
-                center[1] - radius * math.cos(end_rad)
+                center[0] + radius * math.sin(math.radians(angle - start_angle)),
+                center[1] - radius * math.cos(math.radians(angle - start_angle))
             )
         else:
             end_pos = (
-                center[0] - radius * math.sin(end_rad),
-                center[1] + radius * math.cos(end_rad)
+                center[0] + radius * math.cos(math.radians(angle - (90 - start_angle))),
+                center[1] - radius * math.sin(math.radians(angle - (90 - start_angle)))
             )
         
         print(f"Curve ends at pos: {end_pos}, angle: {end_angle}")
@@ -121,7 +120,7 @@ class TrackCanvas:
         # Store the curve element
         new_element = {
             'type': 'curve',
-            'start': start_pos,  # Use exact current position
+            'start': start_pos,
             'center': center,
             'radius': radius,
             'start_angle': start_angle_draw,
@@ -132,8 +131,8 @@ class TrackCanvas:
         # Update track state
         self.track_elements.append(new_element)
         self.undo_stack.append(('add', new_element))
-        self.current_pos = end_pos  # Update position for next segment
-        self.current_direction = end_angle  # Update direction for next segment
+        self.current_pos = end_pos
+        self.current_direction = end_angle
 
     def undo(self) -> None:
         if self.undo_stack:
@@ -153,13 +152,13 @@ class TrackCanvas:
                         self.current_direction = last_element['end_angle']
                 else:
                     self.current_pos = (self.width // 2, self.height // 2)
-                    self.current_direction = -90
+                    self.current_direction = 270
 
     def clear_track(self) -> None:
         self.track_elements = []
         self.undo_stack = []
         self.current_pos = (self.width // 2, self.height // 2)
-        self.current_direction = -90
+        self.current_direction = 270
 
     def set_waiting_for_start(self, waiting: bool) -> None:
         self.waiting_for_start_point = waiting
