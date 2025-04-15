@@ -17,8 +17,14 @@ class TrackCanvas:
         
         # Track drawing properties
         self.current_pos = (width // 2, height // 2)  # Start from center
-        self.track_color = (50, 50, 50)  # Dark gray for the track
-        self.track_width = 5  # Reduced from 10 to 5 pixels
+        self.track_color = (50, 50, 50)  # Center line color (black)
+        self.left_lane_color = (50, 50, 255)  # Blue
+        self.right_lane_color = (255, 255, 0)  # Yellow
+        self.track_width = 1  # Center line width in pixels (reduced from 2)
+        self.lane_width = 1  # Side lane width in pixels
+        self.track_total_width = 0.75  # Track width in meters (reduced from 1.5)
+        self.pixels_per_meter = 8  # Scale factor (reduced from 10)
+        self.lane_offset = (self.track_total_width / 2) * self.pixels_per_meter  # Distance from center to each lane
         self.current_direction = -90  # Start pointing upward (in degrees)
         self.waiting_for_start_point = False
         self.start_direction = -90  # Default direction (upward)
@@ -31,6 +37,14 @@ class TrackCanvas:
         self.current_angle_str = ""
         self.font = pygame.font.SysFont('Arial', 16)
         self.angle_input_rect = pygame.Rect(10, 10, 100, 30)
+        
+        # Add zoom related attributes
+        self.zoom_level = 1.0
+        self.min_zoom = 0.2
+        self.max_zoom = 5.0
+        self.zoom_speed = 0.1
+        self.pan_start = None
+        self.offset = [0, 0]  # [x, y] offset for panning
 
     def add_straight_segment(self, length: float = 100) -> None:
         start_pos = self.current_pos
@@ -55,35 +69,42 @@ class TrackCanvas:
         
         # Convert angles to radians for calculations
         start_rad = math.radians(start_angle)
-        turn_rad = math.radians(angle)
         
         if direction == 'right':
+            # Calculate center point - perpendicular to current direction
             center = (
-                start_pos[0] - radius * math.sin(start_rad),
-                start_pos[1] + radius * math.cos(start_rad)
+                start_pos[0] - radius * math.sin(start_rad),  # x = r * sin(θ)
+                start_pos[1] + radius * math.cos(start_rad)   # y = -r * cos(θ)
             )
-            start_angle_draw = start_angle
-            end_angle_draw = start_angle + angle
-            end_angle = start_angle + angle
             
-            # Calculate end position based on angle
+            # For right turns
+            start_angle_draw = (start_angle + 90) % 360  # Start perpendicular to direction
+            end_angle_draw = (start_angle + 90 - angle) % 360  # Clockwise
+            end_angle = (start_angle - angle) % 360  # Update final direction
+            
+            # Calculate end position
+            end_rad = math.radians(end_angle)
             end_pos = (
-                center[0] + radius * math.sin(start_rad + turn_rad),
-                center[1] - radius * math.cos(start_rad + turn_rad)
+                center[0] + radius * math.sin(end_rad),
+                center[1] - radius * math.cos(end_rad)
             )
         else:  # left
+            # Calculate center point - perpendicular to current direction
             center = (
-                start_pos[0] + radius * math.sin(start_rad),
-                start_pos[1] - radius * math.cos(start_rad)
+                start_pos[0] + radius * math.sin(start_rad),  # x = -r * sin(θ)
+                start_pos[1] - radius * math.cos(start_rad)   # y = r * cos(θ)
             )
-            start_angle_draw = start_angle + 180
-            end_angle_draw = start_angle + (180 - angle)
-            end_angle = start_angle + angle
             
-            # Calculate end position based on angle
+            # For left turns
+            start_angle_draw = (start_angle - 90) % 360  # Start perpendicular to direction
+            end_angle_draw = (start_angle - 90 + angle) % 360  # Counter-clockwise
+            end_angle = (start_angle + angle) % 360  # Update final direction
+            
+            # Calculate end position
+            end_rad = math.radians(end_angle)
             end_pos = (
-                center[0] - radius * math.sin(start_rad + turn_rad),
-                center[1] + radius * math.cos(start_rad + turn_rad)
+                center[0] - radius * math.sin(end_rad),
+                center[1] + radius * math.cos(end_rad)
             )
         
         new_element = {
@@ -91,8 +112,8 @@ class TrackCanvas:
             'start': start_pos,
             'center': center,
             'radius': radius,
-            'start_angle': start_angle_draw,
-            'end_angle': end_angle_draw,
+            'start_angle': math.radians(start_angle_draw),  # Store in radians for drawing
+            'end_angle': math.radians(end_angle_draw),
             'direction': direction
         }
         
@@ -163,21 +184,43 @@ class TrackCanvas:
             self.current_angle_str = ""
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        # Handle zooming with mouse wheel
+        if event.type == pygame.MOUSEWHEEL:
+            if self.surface.get_rect().collidepoint(pygame.mouse.get_pos()):
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                self.zoom(event.y, mouse_x, mouse_y)
+        
+        # Handle panning with middle mouse button
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 2:  # Middle mouse button
+            self.pan_start = pygame.mouse.get_pos()
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 2:
+            self.pan_start = None
+        elif event.type == pygame.MOUSEMOTION and self.pan_start is not None:
+            current_pos = pygame.mouse.get_pos()
+            dx = current_pos[0] - self.pan_start[0]
+            dy = current_pos[1] - self.pan_start[1]
+            self.offset[0] += dx
+            self.offset[1] += dy
+            self.pan_start = current_pos
+
         if event.type == pygame.MOUSEBUTTONDOWN:
             # If clicking outside angle input box, deactivate it
             if self.angle_input_active and not self.angle_input_rect.collidepoint(event.pos):
                 self.set_angle_input(False)
                 return
 
-            canvas_pos = (event.pos[0], event.pos[1])
-            if self.surface.get_rect().collidepoint(canvas_pos):
+            # Convert screen coordinates to world coordinates for clicking
+            screen_pos = event.pos
+            world_pos = self.screen_to_world(screen_pos)
+            
+            if self.surface.get_rect().collidepoint(screen_pos):
                 if self.waiting_for_start_point:
-                    self.current_pos = canvas_pos
+                    self.current_pos = world_pos
                     self.current_direction = self.start_direction
                     self.waiting_for_start_point = False
                 elif self.waiting_for_angle:
-                    dx = canvas_pos[0] - self.current_pos[0]
-                    dy = canvas_pos[1] - self.current_pos[1]
+                    dx = world_pos[0] - self.current_pos[0]
+                    dy = world_pos[1] - self.current_pos[1]
                     self.current_direction = math.degrees(math.atan2(dy, dx))
                     self.waiting_for_angle = False
                     self.temp_start_pos = None
@@ -201,46 +244,148 @@ class TrackCanvas:
     def update(self) -> None:
         pass
 
+    def draw_parallel_line(self, start: Tuple[float, float], end: Tuple[float, float], 
+                         offset: float, color: Tuple[int, int, int], width: int) -> None:
+        """Draw a line parallel to the given line at specified offset"""
+        dx = end[0] - start[0]
+        dy = end[1] - start[1]
+        length = math.sqrt(dx*dx + dy*dy)
+        if length == 0:
+            return
+        
+        # Calculate offset vector (perpendicular to line)
+        offset_x = -dy * offset / length
+        offset_y = dx * offset / length
+        
+        # Calculate parallel line points
+        start_parallel = (start[0] + offset_x, start[1] + offset_y)
+        end_parallel = (end[0] + offset_x, end[1] + offset_y)
+        
+        # Draw the parallel line
+        pygame.draw.line(self.surface, color, start_parallel, end_parallel, width)
+
+    def draw_parallel_arc(self, center: Tuple[float, float], radius: float, 
+                         start_angle: float, end_angle: float, offset: float,
+                         color: Tuple[int, int, int], width: int, direction: str) -> None:
+        """Draw an arc parallel to the given arc at specified offset"""
+        # Adjust radius based on offset and direction
+        if direction == 'right':
+            new_radius = radius + offset if offset > 0 else radius - abs(offset)
+        else:
+            new_radius = radius - offset if offset > 0 else radius + abs(offset)
+        
+        rect = pygame.Rect(
+            center[0] - new_radius,
+            center[1] - new_radius,
+            new_radius * 2,
+            new_radius * 2
+        )
+        pygame.draw.arc(self.surface, color, rect, start_angle, end_angle, width)
+
+    def draw_dotted_line(self, surface: pygame.Surface, color: Tuple[int, int, int],
+                        start_pos: Tuple[float, float], end_pos: Tuple[float, float],
+                        width: int = 1, dash_length: int = 5) -> None:
+        """Draw a dotted line between two points"""
+        dx = end_pos[0] - start_pos[0]
+        dy = end_pos[1] - start_pos[1]
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        if distance <= 0:
+            return
+            
+        dash_count = int(distance / (2 * dash_length))
+        
+        unit_x = dx / distance
+        unit_y = dy / distance
+        
+        for i in range(dash_count):
+            start_x = start_pos[0] + (2 * i * dash_length) * unit_x
+            start_y = start_pos[1] + (2 * i * dash_length) * unit_y
+            end_x = start_x + dash_length * unit_x
+            end_y = start_y + dash_length * unit_y
+            
+            pygame.draw.line(surface, color, (start_x, start_y), (end_x, end_y), width)
+
     def draw(self) -> None:
         # Draw background image if available, otherwise fill with white
         if self.background_image:
-            self.surface.blit(self.background_image, (0, 0))
+            scaled_image = pygame.transform.scale(
+                self.background_image,
+                (int(self.width * self.zoom_level), int(self.height * self.zoom_level))
+            )
+            self.surface.blit(scaled_image, self.offset)
         else:
             self.surface.fill((255, 255, 255))
         
-        # Draw grid lines with semi-transparent overlay
-        grid_color = (230, 230, 230, 128)  # Added alpha for transparency
+        # Draw grid with zoom
+        grid_size = 50 * self.zoom_level
+        grid_color = (230, 230, 230, 128)
         grid_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        for x in range(0, self.width, 50):
-            pygame.draw.line(grid_surface, grid_color, 
-                           (x, 0), 
-                           (x, self.height))
         
-        for y in range(0, self.height, 50):
-            pygame.draw.line(grid_surface, grid_color, 
-                           (0, y), 
-                           (self.width, y))
+        # Calculate grid lines with offset
+        start_x = self.offset[0] % grid_size
+        start_y = self.offset[1] % grid_size
+        
+        for x in range(int(start_x - grid_size), self.width, int(grid_size)):
+            pygame.draw.line(grid_surface, grid_color, (x, 0), (x, self.height))
+        
+        for y in range(int(start_y - grid_size), self.height, int(grid_size)):
+            pygame.draw.line(grid_surface, grid_color, (0, y), (self.width, y))
         
         self.surface.blit(grid_surface, (0, 0))
 
-        # Draw track elements
+        # Draw track elements with parallel lanes
         for element in self.track_elements:
             if element['type'] == 'straight':
-                pygame.draw.line(self.surface, self.track_color,
-                               element['start'], element['end'],
-                               self.track_width)
+                start = self.world_to_screen(element['start'])
+                end = self.world_to_screen(element['end'])
+                
+                # Draw center dotted line
+                self.draw_dotted_line(self.surface, self.track_color,
+                                    start, end,
+                                    max(1, int(self.track_width * self.zoom_level)),
+                                    dash_length=max(3, int(5 * self.zoom_level)))
+                
+                # Draw parallel lanes
+                offset = self.lane_offset * self.zoom_level
+                self.draw_parallel_line(start, end, offset, self.right_lane_color,
+                                     max(1, int(self.lane_width * self.zoom_level)))
+                self.draw_parallel_line(start, end, -offset, self.left_lane_color,
+                                     max(1, int(self.lane_width * self.zoom_level)))
+                
             elif element['type'] == 'curve':
+                center = self.world_to_screen(element['center'])
+                radius = element['radius'] * self.zoom_level
+                
+                # Draw center dotted arc
                 rect = pygame.Rect(
-                    element['center'][0] - element['radius'],
-                    element['center'][1] - element['radius'],
-                    element['radius'] * 2,
-                    element['radius'] * 2
+                    center[0] - radius,
+                    center[1] - radius,
+                    radius * 2,
+                    radius * 2
                 )
-                start_angle = math.radians(element['start_angle'])
-                end_angle = math.radians(element['end_angle'])
-                pygame.draw.arc(self.surface, self.track_color,
-                              rect, start_angle, end_angle,
-                              self.track_width)
+                
+                # For dotted arc, we'll draw small lines along the arc path
+                start_angle = element['start_angle']
+                end_angle = element['end_angle']
+                angle_range = np.linspace(start_angle, end_angle, 20)  # Adjust number for density
+                for i in range(0, len(angle_range)-1, 2):
+                    a1 = angle_range[i]
+                    a2 = min(angle_range[i+1], end_angle)
+                    pygame.draw.arc(self.surface, self.track_color,
+                                  rect, a1, a2,
+                                  max(1, int(self.track_width * self.zoom_level)))
+                
+                # Draw parallel lanes
+                offset = self.lane_offset * self.zoom_level
+                self.draw_parallel_arc(center, radius, start_angle, end_angle,
+                                    offset, self.right_lane_color,
+                                    max(1, int(self.lane_width * self.zoom_level)),
+                                    element['direction'])
+                self.draw_parallel_arc(center, radius, start_angle, end_angle,
+                                    -offset, self.left_lane_color,
+                                    max(1, int(self.lane_width * self.zoom_level)),
+                                    element['direction'])
 
         # Draw border
         pygame.draw.rect(self.surface, self.border_color, (0, 0, self.width, self.height), 2)
@@ -308,3 +453,30 @@ class TrackCanvas:
                     points.append((x, y))
                 
         return np.array(points)
+
+    def zoom(self, direction: int, mouse_x: int, mouse_y: int) -> None:
+        """Handle zooming centered on mouse position"""
+        old_zoom = self.zoom_level
+        
+        # Update zoom level
+        if direction > 0:
+            self.zoom_level = min(self.zoom_level + self.zoom_speed, self.max_zoom)
+        else:
+            self.zoom_level = max(self.zoom_level - self.zoom_speed, self.min_zoom)
+            
+        # Adjust offset to zoom towards mouse position
+        zoom_factor = self.zoom_level / old_zoom
+        self.offset[0] = mouse_x - (mouse_x - self.offset[0]) * zoom_factor
+        self.offset[1] = mouse_y - (mouse_y - self.offset[1]) * zoom_factor
+
+    def world_to_screen(self, pos: Tuple[float, float]) -> Tuple[float, float]:
+        """Convert world coordinates to screen coordinates"""
+        x = pos[0] * self.zoom_level + self.offset[0]
+        y = pos[1] * self.zoom_level + self.offset[1]
+        return (x, y)
+
+    def screen_to_world(self, pos: Tuple[float, float]) -> Tuple[float, float]:
+        """Convert screen coordinates to world coordinates"""
+        x = (pos[0] - self.offset[0]) / self.zoom_level
+        y = (pos[1] - self.offset[1]) / self.zoom_level
+        return (x, y)

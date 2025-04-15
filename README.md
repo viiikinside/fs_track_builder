@@ -18,6 +18,8 @@ A Python-based graphical tool for designing and exporting Formula Student autocr
   - Visual angle selection with mouse
   - Undo functionality
   - Clear track option
+  - Zoom in/out with mouse wheel
+  - Pan view with middle mouse button
 
 - **Segment Parameters**
   - Adjustable straight segment length
@@ -72,6 +74,12 @@ Run the main.py file to launch the application.
    - Click "Load Background" to choose custom image
    - Images are loaded from track_backgrounds directory
    - Default background loads automatically
+
+5. **View Control**
+   - Use mouse wheel to zoom in/out
+   - Hold middle mouse button to pan view
+   - Zoom centers on mouse position
+   - Zoom range: 20% to 500%
 
 ### Advanced Features
 
