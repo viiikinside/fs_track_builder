@@ -1,9 +1,18 @@
+# Output directories
+output/
+output/images/
+output/tracks/
+
+# Track backgrounds (optional, uncomment if you don't want to track background images)
+# track_backgrounds/
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+env/
 build/
 develop-eggs/
 dist/
@@ -22,7 +31,6 @@ wheels/
 
 # Virtual Environment
 venv/
-env/
 ENV/
 
 # IDE
